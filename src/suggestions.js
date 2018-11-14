@@ -1,46 +1,65 @@
-'use strict';
+"use strict";
 
-var extend = require('xtend');
-var fuzzy = require('fuzzy');
-var List = require('./list');
+var extend = require("xtend");
+var fuzzy = require("fuzzy");
+var List = require("./list");
 
 var Suggestions = function(el, data, options) {
   options = options || {};
 
-  this.options = extend({
-    minLength: 2,
-    limit: 5,
-    filter: true
-  }, options);
+  this.options = extend(
+    {
+      minLength: 2,
+      limit: 5,
+      filter: true
+    },
+    options
+  );
 
   this.el = el;
   this.data = data || [];
   this.list = new List(this);
 
-  this.query = '';
+  this.query = "";
   this.selected = null;
 
   this.list.draw();
 
-  this.el.addEventListener('keyup', function(e) {
-    this.handleKeyUp(e.keyCode);
-  }.bind(this), false);
+  this.el.addEventListener(
+    "keyup",
+    function(e) {
+      this.handleKeyUp(e.keyCode);
+    }.bind(this),
+    false
+  );
 
-  this.el.addEventListener('keydown', function(e) {
-    this.handleKeyDown(e);
-  }.bind(this));
+  this.el.addEventListener(
+    "keydown",
+    function(e) {
+      this.handleKeyDown(e);
+    }.bind(this)
+  );
 
-  this.el.addEventListener('focus', function() {
-    this.handleFocus();
-  }.bind(this));
+  this.el.addEventListener(
+    "focus",
+    function() {
+      this.handleFocus();
+    }.bind(this)
+  );
 
-  this.el.addEventListener('blur', function() {
-    this.handleBlur();
-  }.bind(this));
+  this.el.addEventListener(
+    "blur",
+    function() {
+      this.handleBlur();
+    }.bind(this)
+  );
 
-  this.el.addEventListener('paste', function(e) {
-    this.handlePaste(e);
-  }.bind(this));
+  this.el.addEventListener(
+    "paste",
+    function(e) {
+      this.handlePaste(e);
+    }.bind(this)
+  );
 
   return this;
 };
@@ -52,11 +71,14 @@ Suggestions.prototype.handleKeyUp = function(keyCode) {
   // 13 - ENTER
   // 9 - TAB
 
-  if (keyCode === 40 ||
-      keyCode === 38 ||
-      keyCode === 27 ||
-      keyCode === 13 ||
-      keyCode === 9) return;
+  if (
+    keyCode === 40 ||
+    keyCode === 38 ||
+    keyCode === 27 ||
+    keyCode === 13 ||
+    keyCode === 9
+  )
+    return;
 
   this.handleInputChange(this.el.value);
 };
@@ -64,22 +86,22 @@ Suggestions.prototype.handleKeyUp = function(keyCode) {
 Suggestions.prototype.handleKeyDown = function(e) {
   switch (e.keyCode) {
     case 13: // ENTER
-    case 9:  // TAB
+    case 9: // TAB
       e.preventDefault();
       if (!this.list.isEmpty()) {
         this.value(this.list.items[this.list.active].original);
         this.list.hide();
       }
-    break;
+      break;
     case 27: // ESC
       if (!this.list.isEmpty()) this.list.hide();
-    break;
+      break;
     case 38: // UP
       this.list.previous();
-    break;
+      break;
     case 40: // DOWN
       this.list.next();
-    break;
+      break;
   }
 };
 
@@ -91,10 +113,10 @@ Suggestions.prototype.handleBlur = function() {
 
 Suggestions.prototype.handlePaste = function(e) {
   if (e.clipboardData) {
-    this.handleInputChange(e.clipboardData.getData('Text'));
+    this.handleInputChange(e.clipboardData.getData("Text"));
   } else {
     var self = this;
-    setTimeout(function () {
+    setTimeout(function() {
       self.handleInputChange(e.target.value);
     }, 100);
   }
@@ -110,13 +132,15 @@ Suggestions.prototype.handleInputChange = function(query) {
     return;
   }
 
-  this.getCandidates(function(data) {
-    for (var i = 0; i < data.length; i++) {
-      this.list.add(data[i]);
-      if (i === (this.options.limit - 1)) break;
-    }
-    this.list.draw();
-  }.bind(this));
+  this.getCandidates(
+    function(data) {
+      for (var i = 0; i < data.length; i++) {
+        this.list.add(data[i]);
+        if (i === this.options.limit - 1) break;
+      }
+      this.list.draw();
+    }.bind(this)
+  );
 };
 
 Suggestions.prototype.handleFocus = function() {
@@ -169,37 +193,59 @@ Suggestions.prototype.value = function(value) {
   this.el.value = this.getItemValue(value);
 
   if (document.createEvent) {
-    var e = document.createEvent('HTMLEvents');
-    e.initEvent('change', true, false);
+    var e = document.createEvent("HTMLEvents");
+    e.initEvent("change", true, false);
     this.el.dispatchEvent(e);
   } else {
-    this.el.fireEvent('onchange');
+    this.el.fireEvent("onchange");
   }
+};
+
+Suggestions.prototype.filterNotFuzzy = function(query, data) {
+  var items = [];
+  for (var i = 0; i < data; i++) {
+    var candidate = this.getItemValue(data[i]);
+    if (this.normalize(candidate).indexOf(query)) {
+      items.push(data[i]);
+    }
+  }
+  return items;
 };
 
 Suggestions.prototype.getCandidates = function(callback) {
   var options = {
-    pre: '<strong>',
-    post: '</strong>',
-    extract: function(d) { return this.getItemValue(d); }.bind(this)
+    pre: "<strong>",
+    post: "</strong>",
+    extract: function(d) {
+      return this.getItemValue(d);
+    }.bind(this)
   };
 
-  var results = this.options.filter ?
-    fuzzy.filter(this.query, this.data, options) :
-    this.data.map(function(d) {
-      var boldString = this.getItemValue(d);
-      var indexString = this.normalize(boldString);
-      var indexOfQuery = indexString.lastIndexOf(this.query);
-      while(indexOfQuery > -1) {
-        var endIndexOfQuery = indexOfQuery + this.query.length;
-        boldString = boldString.slice(0, indexOfQuery) + '<strong>' + boldString.slice(indexOfQuery, endIndexOfQuery) + '</strong>' + boldString.slice(endIndexOfQuery);
-        indexOfQuery = indexString.slice(0, indexOfQuery).lastIndexOf(this.query);
-      }
-      return {
-        original: d,
-        string: boldString
-      };
-    }.bind(this));
+  var results = this.options.filter
+    ? this.filterNotFuzzy(this.query, this.data)
+    : this.data.map(
+        function(d) {
+          var boldString = this.getItemValue(d);
+          var indexString = this.normalize(boldString);
+          var indexOfQuery = indexString.lastIndexOf(this.query);
+          while (indexOfQuery > -1) {
+            var endIndexOfQuery = indexOfQuery + this.query.length;
+            boldString =
+              boldString.slice(0, indexOfQuery) +
+              "<strong>" +
+              boldString.slice(indexOfQuery, endIndexOfQuery) +
+              "</strong>" +
+              boldString.slice(endIndexOfQuery);
+            indexOfQuery = indexString
+              .slice(0, indexOfQuery)
+              .lastIndexOf(this.query);
+          }
+          return {
+            original: d,
+            string: boldString
+          };
+        }.bind(this)
+      );
 
   callback(results);
 };
